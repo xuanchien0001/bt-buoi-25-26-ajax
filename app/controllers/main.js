@@ -1,9 +1,8 @@
 function domElement(element) {
   return document.querySelector(element);
 }
-
 // validation
-function validation() {
+function validation(case_use) {
   let isValid = true;
   const validateRequired = (element, elementError, messageError) => {
     if (domElement(element).value.trim().length < 1) {
@@ -22,11 +21,23 @@ function validation() {
     }
   };
   // validation tai khoan
+  let allUser = JSON.parse(localStorage.getItem("allUser"));
+  let valueTaiKhoan = domElement("#TaiKhoan").value.trim();
+
   validateRequired(
     "#TaiKhoan",
     ".TaiKhoan",
     "(*) Tài khoản không được để trống!"
   );
+  if (case_use == "add") {
+    for (let item of allUser) {
+      if (item.taiKhoan === valueTaiKhoan) {
+        domElement(".TaiKhoan").innerHTML = "Tài khoản đã tồn tại!";
+        isValid &= false;
+        break;
+      }
+    }
+  }
   // validation họ tên
   validateRequired("#HoTen", ".HoTen", "(*) Họ tên không được để trống");
   validateRgex(
@@ -68,13 +79,134 @@ function validation() {
   // validate Mô tả
   validateRequired("#MoTa", ".Mo_ta", "Mô tả không được để trống!");
 
-  if (domElement("#MoTa").value.length > 6) {
+  if (domElement("#MoTa").value.length > 60) {
     domElement(".Mo_ta").innerHTML = "Mô tả không vượt quá 60 ký tự!";
     isValid &= false;
   }
   return isValid;
 }
-domElement("#btn_submit").onclick = () => {
-  let isValid = validation();
-  console.log(isValid);
+let getAllUser = () => {
+  axios({
+    method: "GET",
+    url: "https://625bc0d050128c57020706e0.mockapi.io/api/ajax-buoi-25-26",
+  })
+    .then((result) => {
+      localStorage.setItem("allUser", JSON.stringify(result.data));
+      let html = result.data
+        .map((item, index) => {
+          return `<tr>
+        <td>${index + 1}</td>
+        <td>${item.taiKhoan}</td>
+        <td>${item.matKhau}</td>
+        <td>${item.hoTen}</td>
+        <td>${item.email}</td>
+        <td>${item.ngonNgu}</td>
+        <td>${item.tenLoai}</td>
+        <td>
+          <button class="btn btn-danger" onclick ="deleteUser(${
+            item.id
+          })">Delete</button>
+          <button class="btn btn-success" onclick="updateUser(${
+            item.id
+          })" data-toggle="modal" data-target="#myModal">Edit</button>
+        </td>
+      </tr>`;
+        })
+        .join("");
+      domElement("#tblDanhSachNguoiDung").innerHTML = html;
+    })
+    .catch((err) => console.log(err));
+};
+getAllUser();
+
+const deleteUser = (id) => {
+  axios({
+    method: "DELETE",
+    url: `https://625bc0d050128c57020706e0.mockapi.io/api/ajax-buoi-25-26/${id}`,
+  })
+    .then(() => getAllUser())
+    .catch((err) => console.log(err));
+};
+const addUser = () => {
+  const taiKhoan = domElement("#TaiKhoan").value;
+  const matKhau = domElement("#MatKhau").value;
+  const hoTen = domElement("#HoTen").value;
+  const email = domElement("#Email").value;
+  const ngonNgu = domElement("#loaiNgonNgu").value;
+  const tenLoai = domElement("#loaiNguoiDung").value;
+  const hinhAnh = domElement("#HinhAnh").value;
+  const moTa = domElement("#MoTa").value;
+  const user = {
+    taiKhoan: taiKhoan,
+    matKhau: matKhau,
+    hoTen: hoTen,
+    email: email,
+    ngonNgu: ngonNgu,
+    tenLoai: tenLoai,
+    hinhAnh: hinhAnh,
+    moTa: moTa,
+  };
+  domElement("#add_info").reset();
+  return user;
+};
+let id_user_update = "";
+const updateUser = (id) => {
+  let users = JSON.parse(localStorage.getItem("allUser"));
+  domElement("#btn_submit").style.display = "none";
+  domElement("#btn_edit").style.display = "block";
+  for (let i of users) {
+    if (i.id == id) {
+      domElement("#TaiKhoan").value = i.taiKhoan;
+      domElement("#MatKhau").value = i.matKhau;
+      domElement("#HoTen").value = i.hoTen;
+      domElement("#Email").value = i.email;
+      domElement("#loaiNgonNgu").value = i.ngonNgu;
+      domElement("#loaiNguoiDung").value = i.tenLoai;
+      domElement("#HinhAnh").value = i.hinhAnh;
+      domElement("#MoTa").value = i.moTa;
+      break;
+    }
+  }
+  domElement("#TaiKhoan").disabled = true;
+  id_user_update = id;
+};
+
+// handle btn edit
+domElement("#btn_edit").onclick = (e) => {
+  e.preventDefault();
+  let isValid = validation("edit");
+  if (isValid) {
+    const user = addUser();
+    axios({
+      method: "PUT",
+      url: `https://625bc0d050128c57020706e0.mockapi.io/api/ajax-buoi-25-26/${id_user_update}`,
+      data: user,
+    })
+      .then(() => getAllUser())
+      .catch((err) => console.log(err));
+    domElement(".close").click();
+  }
+  domElement("#add_info").reset();
+};
+// handle btn theem
+domElement("#btn_submit").onclick = (e) => {
+  e.preventDefault();
+  let isValid = validation("add");
+  if (isValid) {
+    const user = addUser();
+    axios({
+      method: "POST",
+      url: "https://625bc0d050128c57020706e0.mockapi.io/api/ajax-buoi-25-26",
+      data: user,
+    })
+      .then(() => getAllUser())
+      .catch((err) => console.log(err));
+    domElement(".close").click();
+  }
+};
+
+domElement("#btnThemNguoiDung").onclick = () => {
+  domElement("#btn_submit").style.display = "block";
+  domElement("#btn_edit").style.display = "none";
+  domElement("#TaiKhoan").disabled = false;
 };
